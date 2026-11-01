@@ -157,6 +157,7 @@ The variables below supply credentials after runtime/config overrides and stored
 | `meta`                           | `MODEL_API_KEY`, then `META_API_KEY`                                                |
 | `nanogpt`                        | `NANO_GPT_API_KEY`                                                                  |
 | `novita`                         | `NOVITA_API_KEY`                                                                    |
+| `nebius`                         | `NEBIUS_API_KEY`                                                                    |
 | `venice`                         | `VENICE_API_KEY`                                                                    |
 | `vercel-ai-gateway`              | `AI_GATEWAY_API_KEY` (also `VERCEL_AI_GATEWAY_API_KEY` for catalog discovery)       |
 | `cloudflare-ai-gateway`          | `CLOUDFLARE_AI_GATEWAY_API_KEY` + `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_GATEWAY_ID` |
@@ -218,7 +219,9 @@ SingularityAPI sells two unrelated products behind one brand, so OMP models them
 
 `singularityapi-tech` is the reserved DeepSeek lanes gateway. Usage bills against a booked reservation slot rather than prepaid credit, so a valid key with no active slot answers 403 until you book one at `https://app.singularityapi.tech`. Create an `sk-...` key there (or run `/login singularityapi-tech`), set `SINGULARITYAPI_TECH_API_KEY`, and the lane roster is discovered live from `https://api.singularityapi.tech/v1/models`.
 
-OAuth-backed providers such as `anthropic`, `openai-codex`, `github-copilot`, `cursor`, `muse-code`, `ollama-cloud`, `qwen-portal`, `kimi-code`, `xai-oauth`, `wafer-serverless`, `google-gemini-cli`, `google-antigravity`, `devin`, and the GitLab providers (`gitlab-duo`, `gitlab-duo-agent`) are normally reached through `/login` rather than an environment variable. Interactive API-key logins exist too: `/login baseten`, `/login coreweave`, `/login sakana`, `/login singularityapi-dev`, and `/login singularityapi-tech` prompt for a dashboard/API key (`coreweave` additionally requires `COREWEAVE_PROJECT` for the `OpenAI-Project` header). See [Environment variables](./environment-variables.md) for search-tool and configuration variables not listed here.
+`nebius` is Nebius Token Factory at `https://api.tokenfactory.nebius.com/v1`. Create a project API key at `https://tokenfactory.nebius.com/project/api-keys`, then set `NEBIUS_API_KEY` or run `/login nebius`. With a key, the roster is discovered live from `/v1/models?verbose=true`, including project-scoped dedicated deployments with their limits, prices, and modalities. Set `providers.nebius.includeUncataloguedModels: false` in `models.yml` to keep only the bundled serverless surface and hide dedicated deployments; see [Catalogued-only rosters](./models.md#catalogued-only-rosters).
+
+OAuth-backed providers such as `anthropic`, `openai-codex`, `github-copilot`, `cursor`, `muse-code`, `ollama-cloud`, `qwen-portal`, `kimi-code`, `xai-oauth`, `wafer-serverless`, `google-gemini-cli`, `google-antigravity`, `devin`, and the GitLab providers (`gitlab-duo`, `gitlab-duo-agent`) are normally reached through `/login` rather than an environment variable. Interactive API-key logins exist too: `/login baseten`, `/login coreweave`, `/login nebius`, `/login sakana`, `/login singularityapi-dev`, and `/login singularityapi-tech` prompt for a dashboard/API key (`coreweave` additionally requires `COREWEAVE_PROJECT` for the `OpenAI-Project` header). See [Environment variables](./environment-variables.md) for search-tool and configuration variables not listed here.
 
 ### `.env` discovery and precedence
 

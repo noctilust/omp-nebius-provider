@@ -27,6 +27,12 @@ export interface ProviderOverride {
 	guardrailVersion?: Model<Api>["guardrailVersion"];
 	guardrailTrace?: Model<Api>["guardrailTrace"];
 	requestMetadata?: Model<Api>["requestMetadata"];
+	/**
+	 * Restrict authoritative discovery to ids the bundled catalog describes.
+	 * `false` hides credential-private roster rows (Nebius dedicated
+	 * deployments) that no public catalog lists; `undefined` keeps the roster.
+	 */
+	includeUncataloguedModels?: boolean;
 }
 
 /**

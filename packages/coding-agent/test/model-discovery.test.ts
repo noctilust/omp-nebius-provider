@@ -4534,6 +4534,40 @@ describe("ModelRegistry runtime discovery", () => {
 		expect(registry.find("cursor", "claude-opus-5-5-1m")?.contextWindow).toBe(1_000_000);
 	});
 
+	test("Nebius catalogued-only mode hides dedicated deployments from registry discovery", async () => {
+		const bundledId = "deepseek-ai/DeepSeek-V4-Flash-0731";
+		const dedicatedId = "dedicated/sa-example/MiniMax-M3.1-Flash-NVFP4-TP2-abc123";
+		authStorage.keys.setRuntime("nebius", "nebius-test-key");
+		const fetchMock: FetchImpl = async input => {
+			if (String(input).startsWith("https://api.tokenfactory.nebius.com/v1/models")) {
+				return Response.json({
+					data: [
+						{ id: bundledId, architecture: { modality: "text->text" } },
+						{ id: dedicatedId, architecture: { modality: "text->text" } },
+					],
+				});
+			}
+			return new Response("", { status: 404 });
+		};
+
+		const all = new ModelRegistry(authStorage, modelsJsonPath, {
+			fetch: fetchMock,
+			cacheDbPath: path.join(tempDir, "all.db"),
+		});
+		await all.refreshProvider("nebius", "online");
+		expect(all.find("nebius", bundledId)).toBeDefined();
+		expect(all.find("nebius", dedicatedId)).toBeDefined();
+
+		writeRawModelsJson({ nebius: { includeUncataloguedModels: false } });
+		const catalogued = new ModelRegistry(authStorage, modelsJsonPath, {
+			fetch: fetchMock,
+			cacheDbPath: path.join(tempDir, "catalogued.db"),
+		});
+		await catalogued.refreshProvider("nebius", "online");
+		expect(catalogued.find("nebius", bundledId)).toBeDefined();
+		expect(catalogued.find("nebius", dedicatedId)).toBeUndefined();
+	});
+
 	test("startup drops a current Copilot alias whose headers differ from its bundled base", () => {
 		const bundledBase = getBundledModel("github-copilot", "gpt-5.6-sol");
 		if (!bundledBase?.headers) {

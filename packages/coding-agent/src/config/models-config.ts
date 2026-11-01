@@ -35,6 +35,7 @@ export interface ProviderValidationConfig {
 	disableStrictTools?: boolean;
 	guardrailIdentifier?: string;
 	requestMetadata?: Record<string, string>;
+	includeUncataloguedModels?: boolean;
 	modelOverrides?: Record<string, { api?: Api; kind?: ModelKind }>;
 	models: ProviderValidationModel[];
 }
@@ -63,10 +64,11 @@ export function validateProviderConfiguration(
 				!config.requestMetadata &&
 				!config.remoteCompaction &&
 				!hasModelOverrides &&
+				config.includeUncataloguedModels === undefined &&
 				!config.discovery
 			) {
 				throw new Error(
-					`Provider ${providerName}: must specify "baseUrl", "headers", "apiKey", "auth: none", "compat", "disableStrictTools", "guardrailIdentifier", "requestMetadata", "remoteCompaction", "modelOverrides", "discovery", or "models"`,
+					`Provider ${providerName}: must specify "baseUrl", "headers", "apiKey", "auth: none", "compat", "disableStrictTools", "guardrailIdentifier", "requestMetadata", "remoteCompaction", "modelOverrides", "includeUncataloguedModels", "discovery", or "models"`,
 				);
 			}
 		}
@@ -215,6 +217,7 @@ export const ModelsConfigFile = new ConfigFile<ModelsConfig>("models", {
 				disableStrictTools: providerConfig.disableStrictTools,
 				guardrailIdentifier: providerConfig.guardrailIdentifier,
 				requestMetadata: providerConfig.requestMetadata,
+				includeUncataloguedModels: providerConfig.includeUncataloguedModels,
 				modelOverrides: providerConfig.modelOverrides,
 				models: (providerConfig.models ?? []) as ProviderValidationModel[],
 			},

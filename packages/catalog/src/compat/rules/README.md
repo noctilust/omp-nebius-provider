@@ -196,6 +196,8 @@ An `on-api` nested inside `on` under a class requires both the selected provider
 
 A `models` string without `*` is an exact, case-sensitive match against the provider-relative model identifier. A string containing `*` is an anchored, ASCII-case-insensitive wildcard match. Prefer taxonomy ranks; retain exact/glob lists only when they isolate the census member set exactly, and keep a `// residue:` comment explaining why ranks do not.
 
+Worked example of selecting by lineage for ids that never appear in a public catalog (Nebius dedicated deployments): [`docs/nebius-dedicated-deployments.md`](../../../../../docs/nebius-dedicated-deployments.md).
+
 A row whose own id classifies as `unknown` but whose `requestModelId` does not resolves under the wire id: classification and `models` matching both use it, so the model the row sends gets its own rules. Devin Fusion pairings (`fusion-<lead>-sidekick-*`) resolve as their lead this way.
 
 `priority=N` is an optional signed integer property on the block that owns axis assignments. Its default is zero. Use it only to resolve an intentional equal-specificity overlap; do not use it to encode declaration order.

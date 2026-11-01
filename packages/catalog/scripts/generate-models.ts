@@ -81,16 +81,18 @@ const prevModelsJson: Record<string, Record<string, Model<Api>>> = Object.fromEn
 const DISCOVERY_ONLY_PROVIDERS = new Set(["ollama", "vllm", "lm-studio", "litellm"]);
 /**
  * Credential-scoped catalogs (Devin's Cascade roster is gated per account/team
- * via `allowed_model_uids`). Fetching them during generation would bake one
- * private account's entitlements into the shared bundle, and those rows then
- * survive forever as previous-snapshot zombies: a later regen without that
- * credential can never mark the provider authoritative to prune them. These
- * providers are never fetched at generation time and their previous-snapshot
- * rows are dropped — the curated static seed is the only bundled surface, and
- * runtime discovery is authoritative per credential (mirrors the GitLab Duo
- * fallback-only policy below).
+ * via `allowed_model_uids`; Nebius lists a project's dedicated deployments
+ * beside its public serverless roster). Fetching them during generation would
+ * bake one private account's entitlements into the shared bundle, and those
+ * rows then survive forever as previous-snapshot zombies: a later regen
+ * without that credential can never mark the provider authoritative to prune
+ * them. These providers are never fetched at generation time and their
+ * previous-snapshot rows are dropped — the curated static seed (and the shared
+ * catalog's public rows) is the only bundled surface, and runtime discovery is
+ * authoritative per credential (mirrors the GitLab Duo fallback-only policy
+ * below).
  */
-const CREDENTIAL_SCOPED_PROVIDERS = new Set(["devin", "sambanova"]);
+const CREDENTIAL_SCOPED_PROVIDERS = new Set(["devin", "nebius", "sambanova"]);
 /**
  * Providers whose authored seed is the complete documented fallback
  * catalog: their previous-snapshot rows are never resurrected, so an id

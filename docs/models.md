@@ -241,6 +241,7 @@ Must define at least one of:
 - `guardrailIdentifier`
 - `requestMetadata`
 - non-empty `modelOverrides`
+- `includeUncataloguedModels`
 - `discovery`
 - `remoteCompaction`
 
@@ -249,6 +250,18 @@ Must define at least one of:
 - `discovery.timeoutMs` overrides that provider's runtime HTTP probe timeout in milliseconds. It must be a positive finite number.
 - Without an override, Ollama and llama.cpp loopback probes use short endpoint-specific budgets (150–250 ms); remote/LAN probes use 10 s. Generic model-list and proxy probes default to 10 s.
 - `discovery` requires provider-level `api`, except `discovery.type: proxy` (per-model wire auto-detected).
+
+### Catalogued-only rosters
+
+`includeUncataloguedModels` (provider-level, default `true`) limits a provider's
+authoritative discovery to ids the bundled catalog describes. Currently honored by
+`nebius`: set it to `false` to hide project-scoped dedicated deployments, which
+appear in no public catalog: their ids share the `<org>/<model>` shape with serverless
+ids, so bundled membership is the only serverless signal. A serverless id released
+after the last catalog regeneration is uncatalogued too and stays hidden until
+`bun run gen:models` refreshes `models.json`. The roster cache is namespaced by this
+setting, so flipping it re-probes instead of serving the other mode's rows for the
+cache TTL.
 
 ### Remote compaction
 
@@ -418,6 +431,11 @@ OpenAI-model-list discovery keeps pricing local-unknown (zero) rather than borro
 prices; rich provider discovery such as LiteLLM can supply its own prices.
 
 ## Runtime discovery integration
+
+Providers whose roster includes credential-scoped rows must derive capabilities from that roster
+rather than a public catalog; Nebius Token Factory is the worked example, covering dedicated
+deployments and the lineage rules that give them an effort ladder
+([nebius-dedicated-deployments.md](./nebius-dedicated-deployments.md)).
 
 ### Implicit Ollama discovery
 

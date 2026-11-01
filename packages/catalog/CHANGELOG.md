@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added Nebius Token Factory (`nebius`) as a built-in provider with `/login nebius` or `NEBIUS_API_KEY`, live discovery of serverless and dedicated deployments, roster-driven reasoning (`supported_features` wins; lineage ladders only fill in an absent capability), MiniMax effort tiers from `low` through `max` with `none` to turn thinking off, and embedding SKUs excluded from the chat list
+
 ## [18.14.2] - 2026-10-31
 
 ### Breaking Changes

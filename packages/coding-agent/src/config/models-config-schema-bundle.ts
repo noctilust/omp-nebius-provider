@@ -382,6 +382,14 @@ export const getModelsConfigSchemaBundle = once(() => {
 		"remoteCompaction?": RemoteCompactionSchema,
 		"authHeader?": "boolean",
 		"auth?": ProviderAuthSchema,
+		/**
+		 * Defaults to `true`. Set `false` to keep only the ids the bundled
+		 * catalog describes when a provider's authoritative discovery also
+		 * returns credential-private rows that no public catalog lists (Nebius
+		 * dedicated deployments). A not-yet-bundled serverless id is also
+		 * uncatalogued, so it stays hidden until the catalog is regenerated.
+		 */
+		"includeUncataloguedModels?": "boolean",
 		"discovery?": ProviderDiscoverySchema,
 		"models?": ModelDefinitionSchema.array(),
 		"modelOverrides?": { "[string]": ModelOverrideSchema },

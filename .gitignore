@@ -99,3 +99,8 @@ packages/coding-agent/bench/boot-baseline.json
 /.bazelrc.user
 
 .parity/
+
+# Runtime SQLite files created when processes run from the package directory
+packages/coding-agent/*.db
+packages/coding-agent/*.db-shm
+packages/coding-agent/*.db-wal

@@ -1820,7 +1820,8 @@ export class ModelRegistry {
 				providerConfig.guardrailIdentifier ||
 				providerConfig.requestMetadata ||
 				providerConfig.remoteCompaction ||
-				providerConfig.transport
+				providerConfig.transport ||
+				providerConfig.includeUncataloguedModels !== undefined
 			) {
 				const disableStrictCompat = providerConfig.disableStrictTools ? { disableStrictTools: true } : undefined;
 				overrides.set(providerName, {
@@ -1842,6 +1843,7 @@ export class ModelRegistry {
 					guardrailVersion: providerConfig.guardrailVersion,
 					guardrailTrace: providerConfig.guardrailTrace,
 					requestMetadata: providerConfig.requestMetadata,
+					includeUncataloguedModels: providerConfig.includeUncataloguedModels,
 				});
 			}
 
@@ -2521,6 +2523,7 @@ export class ModelRegistry {
 					apiKey: isDiscoveryBearerApiKey(apiKey) ? apiKey : undefined,
 					baseUrl: this.#descriptorBaseUrl(descriptor.providerId),
 					fetch: this.#fetch,
+					includeUncataloguedModels: this.#providerOverrides.get(descriptor.providerId)?.includeUncataloguedModels,
 					region: identity?.region,
 					inferenceRegion: identity?.inferenceRegion,
 					orgId: identity?.orgId,

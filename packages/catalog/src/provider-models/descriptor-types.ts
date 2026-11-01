@@ -10,6 +10,12 @@ export type ModelManagerConfig = AccountScope & {
 	fetch?: FetchImpl;
 	/** The supplied fetch already applies provider-specific authentication. */
 	authenticated?: boolean;
+	/**
+	 * From the provider's `models.yml` entry. `false` restricts authoritative
+	 * discovery to ids the bundled catalog describes; `undefined`/`true` keeps
+	 * every roster row.
+	 */
+	includeUncataloguedModels?: boolean;
 };
 
 /**

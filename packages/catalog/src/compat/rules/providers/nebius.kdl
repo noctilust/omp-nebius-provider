@@ -1,0 +1,65 @@
+// Nebius Token Factory: bundled metadata comes from the shared catalog;
+// authenticated verbose discovery replaces the roster and deployment metadata.
+
+provider "nebius" {
+	default-model "deepseek-ai/DeepSeek-V4-Flash-0731"
+	env "NEBIUS_API_KEY"
+	dynamic-models-authoritative #true
+	discovery label="Nebius Token Factory"
+
+	// Deployment effort vocabularies: catalog.stencil.so/models.json, 2026-10-23.
+	// The verbose API omits these controls; lineage defaults are not host contracts.
+	class "deepseek" {
+		revision ">=4" {
+			thinking-upgrade-neutral #true
+			reasoning-disable-mode "none-effort"
+		}
+	}
+	class "qwen" {
+		revision "=3.8" {
+			thinking-efforts "low" "medium" "xhigh"
+			thinking-format "openai"
+			thinking-upgrade-neutral #true
+			reasoning-disable-mode "none-effort"
+		}
+	}
+	class "glm" {
+		revision "=5.2" {
+			thinking-efforts "low" "medium" "high"
+			thinking-upgrade-neutral #true
+		}
+		revision ">=5.3" {
+			thinking-efforts "low" "high" "max"
+			thinking-requires-effort #true
+			thinking-upgrade-neutral #true
+		}
+	}
+	// residue: taxonomy has no Nemotron class or revision that isolates these
+	// deployments. Match the lineage inside deployment ids (`sa-example/...`)
+	// as well as the serverless spelling.
+	models "*nemotron-3_5-lightning*" "*nemotron-3.5-lightning*" \
+		"nvidia/Nemotron-3-Ultra-550b-a55b" \
+		"nvidia/Nemotron-3.5-Super-VL" {
+		thinking-efforts "high"
+		thinking-upgrade-neutral #true
+		reasoning-disable-mode "none-effort"
+	}
+	class "kimi" {
+		family "k3" {
+			thinking-efforts "low" "medium" "high" "max"
+			reasoning-effort-map {}
+			thinking-requires-effort #false
+			thinking-upgrade-neutral #true
+			reasoning-disable-mode "none-effort"
+		}
+	}
+	// residue: taxonomy does not isolate these host-specific effort vocabularies.
+	models "meta-models/muse-spark-open" {
+		thinking-efforts "low" "medium" "high" "xhigh"
+		thinking-upgrade-neutral #true
+	}
+	models "reflection/beam" {
+		thinking-efforts "minimal" "low" "medium" "high" "xhigh" "max"
+		thinking-upgrade-neutral #true
+	}
+}

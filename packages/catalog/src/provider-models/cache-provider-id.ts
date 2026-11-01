@@ -3,6 +3,7 @@ import { CODEX_BASE_URL, CODEX_CLIENT_VERSION } from "../wire/codex";
 import { CURSOR_DEFAULT_BASE_URL } from "../wire/cursor";
 import { type AccountScope, factoryDroidModelCacheProviderId } from "../wire/factory-droid";
 import { PERSONAL_GITHUB_COPILOT_BASE_URL } from "../wire/github-copilot";
+import { normalizeNebiusBaseUrl } from "../wire/nebius";
 import {
 	SINGULARITYAPI_DEV_API_BASE_URL,
 	SINGULARITYAPI_TECH_API_BASE_URL,
@@ -12,6 +13,8 @@ import {
 export interface ModelCacheProviderIdOptions extends AccountScope {
 	apiKey?: string;
 	baseUrl?: string;
+	/** Roster scope: whether uncatalogued ids are allowed; part of the namespace. */
+	includeUncataloguedModels?: boolean;
 }
 
 const CREDENTIAL_SCOPED_MODEL_CACHE_PROVIDERS: Readonly<Record<string, true>> = {
@@ -21,6 +24,9 @@ const CREDENTIAL_SCOPED_MODEL_CACHE_PROVIDERS: Readonly<Record<string, true>> = 
 	"muse-code": true,
 	cursor: true,
 	"factory-droid": true,
+	// Token Factory lists a project's dedicated deployments, so the roster is
+	// issued per key and must never be served from another account's cache.
+	nebius: true,
 	// Both SingularityAPI rosters are issued per key, so the namespace must be
 	// resolved with the credential (`hydrateCredentialScopedModelCaches`) rather
 	// than from the synchronous, credential-less startup read.
@@ -152,6 +158,18 @@ export function resolveModelCacheProviderId(providerId: string, options: ModelCa
 			const baseUrl = options.baseUrl ?? getDefaultModelDiscoveryBaseUrl(providerId)!;
 			const scope = `${options.apiKey ?? ""}\u0000${baseUrl}`;
 			return `muse-code:models-v1:${Bun.hash(scope).toString(36)}`;
+		}
+		case "nebius": {
+			// Discovery is authoritative, so a warm cache is served for its full
+			// TTL: without the key in the namespace, a switched key keeps serving
+			// the previous project's dedicated deployments. The catalogued-only
+			// mode changes what a successful roster contains, and the warm cache
+			// is served without probing, so the mode joins the scope; otherwise
+			// flipping the switch would show the other mode's rows for a day.
+			const baseUrl = normalizeNebiusBaseUrl(options.baseUrl);
+			const mode = options.includeUncataloguedModels === false ? "catalogued" : "all";
+			const scope = `${options.apiKey ?? ""}\u0000${baseUrl}\u0000${mode}`;
+			return `nebius:models-v1:${Bun.hash(scope).toString(36)}`;
 		}
 		case "singularityapi-dev":
 		case "singularityapi-tech": {

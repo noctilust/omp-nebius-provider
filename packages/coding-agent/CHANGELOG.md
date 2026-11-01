@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added `providers.<id>.includeUncataloguedModels` to `models.yml`: set it to `false` on `nebius` to hide project-scoped dedicated deployments and keep only the bundled serverless surface
+
 ## [18.14.2] - 2026-10-31
 
 ### Added

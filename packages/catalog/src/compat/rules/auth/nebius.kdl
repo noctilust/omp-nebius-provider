@@ -1,0 +1,16 @@
+// Auth contract for "nebius" — Nebius Token Factory.
+//
+// Token Factory authenticates with a project API key sent as a bearer token.
+// `/v1/models` is credential-protected (a missing or invalid key answers 401),
+// so the login probe validates against that endpoint: it rejects a bad key
+// without billing an inference request.
+
+auth "nebius" {
+	name "Nebius Token Factory"
+	login "api-key" {
+		auth-url "https://tokenfactory.nebius.com/project/api-keys"
+		instructions "Create or copy an API key from the Nebius Token Factory dashboard"
+		prompt "Paste your Nebius Token Factory API key" placeholder="..."
+		validate "models-endpoint" label="Nebius Token Factory" url="https://api.tokenfactory.nebius.com/v1/models"
+	}
+}

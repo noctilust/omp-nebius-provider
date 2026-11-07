@@ -1,7 +1,8 @@
 /**
- * `/clear` keeps the session, its title and its card, but replaces the
- * conversation that title was generated from, so an auto title is re-considered
- * once the first run of the new conversation settles (`title.refreshOnClear`).
+ * `/clear` keeps the session and its title, but replaces the conversation that
+ * title — and its card — were generated from, so an auto title is re-considered,
+ * card included, once the first run of the new conversation settles
+ * (`title.refreshOnClear`).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "bun:test";
 import { Agent } from "@oh-my-pi/pi-agent-core";
@@ -18,10 +19,14 @@ import type { TitleChangeEntry } from "@oh-my-pi/pi-coding-agent/session/session
 import * as titleDriftClassifier from "@oh-my-pi/pi-coding-agent/session/title-drift-classifier";
 import { createAssistantMessage } from "./helpers/agent-session-setup";
 
-/** The session's own title, card included: a refresh has to keep the card. */
+/** The session's own title, card included: a drift or replan refresh has to keep the card. */
 const CARD_TITLE = "🧪 FLAKY: Fix flaky park tests";
 /** What the title model answers with when a refresh regenerates the title. */
 const RETITLED = "Rebuild the docs pipeline";
+/** What the card request answers with for the new conversation: `<icon> <CODE>`. */
+const CARD_REPLY = "📄 DOCS";
+/** The retitled name once the card is re-derived from the new conversation. */
+const RETITLED_WITH_FRESH_CARD = `📄 DOCS: ${RETITLED}`;
 
 let session: AgentSession | undefined;
 let authStorage: AuthStorage | undefined;
@@ -86,6 +91,9 @@ async function createSession(settingsOverride: Record<string, unknown> = {}): Pr
 const titleReply = (title: string) =>
 	({ stopReason: "stop", content: [{ type: "text", text: `<title>${title}</title>` }] }) as never;
 
+/** The reply the title model would send with the raw text `text`, e.g. a card. */
+const textReply = (text: string) => ({ stopReason: "stop", content: [{ type: "text", text }] }) as never;
+
 /** Resolves once the session's title becomes `expected`. */
 function waitForSessionName(expected: string): Promise<void> {
 	if (session?.sessionManager.getSessionName() === expected) return Promise.resolve();
@@ -99,18 +107,21 @@ function waitForSessionName(expected: string): Promise<void> {
 }
 
 describe("AgentSession title refresh after /clear", () => {
-	it("re-considers a generated title from the new conversation and keeps its card", async () => {
+	it("re-considers a generated title from the new conversation and re-derives its card", async () => {
 		const active = await createSession();
 		await active.setSessionName(CARD_TITLE, "auto");
 		const drifted = vi.spyOn(titleDriftClassifier, "classifyTitleDrift").mockResolvedValue(true);
-		const titles = vi.spyOn(ai, "completeSimple").mockResolvedValue(titleReply(RETITLED));
+		const titles = vi
+			.spyOn(ai, "completeSimple")
+			.mockResolvedValueOnce(titleReply(RETITLED))
+			.mockResolvedValue(textReply(CARD_REPLY));
 
 		await active.prompt("fix the flaky park tests");
 		await active.resetSessionContext();
 		// The boundary itself changes nothing: the check waits for the new conversation.
 		expect(drifted).not.toHaveBeenCalled();
 
-		const retitled = waitForSessionName(`🧪 FLAKY: ${RETITLED}`);
+		const retitled = waitForSessionName(RETITLED_WITH_FRESH_CARD);
 		await active.prompt("rebuild the docs pipeline");
 		await retitled;
 
@@ -121,7 +132,9 @@ describe("AgentSession title refresh after /clear", () => {
 		expect(title).toBe(CARD_TITLE);
 		expect(recent).toContainEqual({ role: "user", text: "rebuild the docs pipeline" });
 		expect(recent.some(turn => turn.text.includes("park tests"))).toBe(false);
-		expect(titles).toHaveBeenCalledTimes(1);
+		// The title, then a card request for it: the pre-clear card named the cleared work.
+		expect(titles).toHaveBeenCalledTimes(2);
+		expect(active.sessionManager.getSessionName()).not.toContain("FLAKY");
 		const changes = active.sessionManager
 			.getEntries()
 			.filter((entry): entry is TitleChangeEntry => entry.type === "title_change");
@@ -203,7 +216,9 @@ describe("AgentSession title refresh after /clear", () => {
 			.spyOn(titleDriftClassifier, "classifyTitleDrift")
 			.mockReturnValueOnce(slowVerdict.promise)
 			.mockResolvedValue(true);
-		vi.spyOn(ai, "completeSimple").mockResolvedValue(titleReply(RETITLED));
+		vi.spyOn(ai, "completeSimple")
+			.mockResolvedValueOnce(titleReply(RETITLED))
+			.mockResolvedValue(textReply(CARD_REPLY));
 
 		await active.prompt("fix the flaky park tests");
 		expect(drifted).toHaveBeenCalledTimes(1);
@@ -214,7 +229,7 @@ describe("AgentSession title refresh after /clear", () => {
 
 		// The released judgment unwinds well within the next prompt's round trip.
 		slowVerdict.resolve(false);
-		const retitled = waitForSessionName(`🧪 FLAKY: ${RETITLED}`);
+		const retitled = waitForSessionName(RETITLED_WITH_FRESH_CARD);
 		await active.prompt("thanks");
 		await retitled;
 

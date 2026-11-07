@@ -273,7 +273,8 @@ command aborts it and waits for it to stop before resetting.
   for a still-untitled session, and any in-flight title generation. The retained
   title is re-considered once, after the first post-reset run settles (or a later
   one, if other title work is still running), and is replaced only when the judge
-  role finds it no longer names the new conversation (keeping its card). That one
+  role finds it no longer names the new conversation (re-deriving its card from
+  the new one, so a cleared topic's card does not head the new work). That one
   judged check also restarts the `title.refreshAfterPrompts` count, and any
   title refresh scheduled after the reset (e.g. a todo replan) satisfies it. A
   user-set title is never touched, and `title.refreshOnClear` (on by default)

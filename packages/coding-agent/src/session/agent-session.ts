@@ -11582,7 +11582,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			(!title && titleSignal.aborted) ||
 			sessionManager.getSessionId() !== sessionId ||
 			sessionManager.titleRevision !== revision;
-		const named = context === undefined ? title : await this.#retitle(context, signal);
+		const named = context === undefined ? title : await this.#retitle(context, true, signal);
 		if (stale()) return undefined;
 		if (!named) return null;
 		const carded = await this.#cardTitle(named, signal);
@@ -11603,10 +11603,18 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		return card ? formatCardTitle(card, title) : title;
 	}
 
-	/** A fresh title-model title for `context` that keeps the current title's card; null when generation fails. */
-	async #retitle(context: string, signal?: AbortSignal): Promise<string | null> {
+	/**
+	 * A fresh title-model title for `context`; null when generation fails.
+	 * `keepCard` heads it with the current title's card (a drift or replan retitle
+	 * keeps the session's card). Otherwise the card is re-derived from the new
+	 * conversation — the work the card named was dropped — so a card the
+	 * generator named is used and a cardless title asks for one.
+	 */
+	async #retitle(context: string, keepCard: boolean, signal?: AbortSignal): Promise<string | null> {
 		const title = await this.generateTitle(context, undefined, signal);
-		return title && keepTitleCard(this.sessionName, title);
+		if (!title) return null;
+		if (keepCard) return keepTitleCard(this.sessionName, title);
+		return this.#cardsAutoTitles() ? await this.#cardTitle(title, signal) : title;
 	}
 
 	/**
@@ -11621,7 +11629,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (trigger !== "replan" && !((await this.#titleDrifted()) && this.#titleRefreshable(sessionId, trigger))) return;
 		const context = this.#buildReplanTitleContext();
 		if (!context) return;
-		const retitled = await this.#retitle(context);
+		// A `/clear` retitle re-derives the card the new conversation names; a
+		// drift or replan retitle keeps the card the session already has.
+		const retitled = await this.#retitle(context, trigger !== "reset");
 		if (!retitled) return;
 		// A session first named without a card (a subagent, a title-model title) gets one here.
 		const title = this.#cardsAutoTitles() ? await this.#cardTitle(retitled) : retitled;

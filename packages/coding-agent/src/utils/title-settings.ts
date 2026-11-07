@@ -66,6 +66,19 @@ export const cfgTitleRefreshOnReplan = register({
 	},
 });
 
+export const cfgTitleRefreshOnClear = register({
+	id: "title.refreshOnClear",
+	type: "boolean",
+	default: true,
+	ui: {
+		tab: "tasks",
+		group: "Modes",
+		label: "Refresh Title on Clear",
+		description:
+			"Re-consider a generated session title after /clear, once the new conversation settles and the judge finds the title no longer names it",
+	},
+});
+
 export const cfgTitleRefreshAfterPrompts = register({
 	id: "title.refreshAfterPrompts",
 	type: "number",

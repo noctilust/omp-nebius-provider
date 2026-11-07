@@ -584,6 +584,7 @@ import {
 	cfgTitleGenerator,
 	cfgTitleIcons,
 	cfgTitleRefreshAfterPrompts,
+	cfgTitleRefreshOnClear,
 	cfgTitleRefreshOnReplan,
 	type TitleIcons,
 } from "../utils/title-settings";
@@ -875,8 +876,12 @@ type ActiveAgentContinue = {
 };
 
 type SessionTitleSource = "auto" | "user";
-/** What refreshed an automatic title: a todo-init replan, or a judge finding it stale after `title.refreshAfterPrompts` operator prompts. */
-type SessionNameTrigger = "replan" | "drift";
+/**
+ * What refreshed an automatic title: a todo-init replan, a judge finding it
+ * stale after `title.refreshAfterPrompts` operator prompts, or the same judge
+ * check once `/clear` replaced the conversation the title was generated from.
+ */
+type SessionNameTrigger = "replan" | "drift" | "reset";
 type SetSessionNameWithTrigger = (
 	name: string,
 	source?: SessionTitleSource,
@@ -1182,6 +1187,10 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	#titleInput: TitleInput | undefined;
 	/** Operator prompts since the last title check, toward `title.refreshAfterPrompts`. */
 	#titleDrift: { sessionId: string; prompts: number } | undefined;
+	/** An auto title to re-consider after `/clear`, at the first settled run that can
+	 *  schedule a refresh: the boundary dropped the conversation the title was generated
+	 *  from, so the judge decides whether it still names the work (see {@link resetSessionContext}). */
+	#pendingTitleAfterReset: { sessionId: string } | undefined;
 	#titleProviderSessionId: string | undefined;
 	#titleProviderParentSessionId: string | undefined;
 	/** Host hook invoked when a typed user prompt is dropped before dispatch;
@@ -4998,7 +5007,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 			}
 			// A turn that ended on its own (not the interrupt's aborted message) closes the stopped run.
 			if (!isUserInterruptAbort(msg)) this.#turnSettledSinceUserInterrupt = true;
-			if (msg.stopReason !== "aborted" && msg.stopReason !== "error") this.#maybeRefreshTitleAfterPrompts();
+			if (msg.stopReason !== "aborted" && msg.stopReason !== "error") {
+				// The boundary check first: when both are due, one judged check answers both.
+				this.#maybeRefreshTitleAfterReset();
+				this.#maybeRefreshTitleAfterPrompts();
+			}
 
 			const yieldOnThisMessage = this.#assistantEndedWithSuccessfulYield(msg);
 			const successfulYieldMessage = yieldOnThisMessage
@@ -6921,6 +6934,20 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// newSession()).
 		this.#clearCheckpointRuntimeState();
 		this.#clearSessionScopedToolState();
+
+		// The title pipeline is conversation-scoped state too: the prompts counted
+		// toward `title.refreshAfterPrompts`, the request naming a still-untitled
+		// session, and any in-flight title work (a first-title fork, a refresh, a
+		// `/rename` card) were all about the transcript this reset drops. Aborting
+		// mirrors abort(); a typed `/rename` keeps its title and loses only its card.
+		// The session, its title and its card stay — that is the point of `/clear` —
+		// and the title is re-considered once the new conversation settles.
+		this.#titleDrift = undefined;
+		this.#titleInput = undefined;
+		this.#deferredTitle = undefined;
+		this.#titleGenerationAbortController.abort();
+		if (!this.#isDisposed) this.#titleGenerationAbortController = new AbortController();
+		this.#pendingTitleAfterReset = { sessionId: this.sessionManager.getSessionId() };
 
 		// Rotate provider-side session state so a provider that keeps conversation
 		// history server-side starts a brand-new exchange rather than resuming the
@@ -11154,9 +11181,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/**
 	 * Retitle a generated title from recent conversation: after a todo-init
-	 * replan, or once `title.refreshAfterPrompts` operator prompts have run since
-	 * it was last refreshed and the judge finds it no longer fits. A title the
-	 * user set is never replaced.
+	 * replan, once `title.refreshAfterPrompts` operator prompts have run since it
+	 * was last refreshed, or once after a `/clear` — the latter two only when the
+	 * judge finds it no longer fits. A title the user set is never replaced.
+	 * Skipped while other title work runs; the caller's pending trigger stays
+	 * armed for a later settled run.
 	 */
 	#scheduleTitleRefresh(trigger: SessionNameTrigger): void {
 		if ($env.PI_NO_TITLE) return;
@@ -11173,8 +11202,11 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		// make that request, which carries the card, drop its reply.
 		if (this.#titleGenerationInFlightFor === sessionId) return;
 		if (!this.#titleRefreshable(sessionId, trigger)) return;
-		// A check consumes the prompts that triggered it whatever its verdict; prompts sent while it runs count toward the next.
-		if (trigger === "drift") this.#titleDrift = undefined;
+		// A refresh reads the conversation since the latest `/clear`, so it answers
+		// that boundary's pending check. A judged check also consumes the prompts that
+		// triggered it whatever its verdict; prompts sent while it runs count toward the next.
+		this.#pendingTitleAfterReset = undefined;
+		if (trigger !== "replan") this.#titleDrift = undefined;
 		const refresh = this.#refreshTitle(sessionId, trigger)
 			.catch(err => {
 				logger.warn("title-generator: title refresh failed", {
@@ -11200,6 +11232,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	#titleRefreshEnabled(trigger: SessionNameTrigger): boolean {
 		if (trigger === "replan") return cfgTitleRefreshOnReplan.get(this.settings);
+		if (trigger === "reset") return cfgTitleRefreshOnClear.get(this.settings);
 		return this.#autoTitle && cfgTitleRefreshAfterPrompts.get(this.settings) > 0;
 	}
 
@@ -11219,6 +11252,26 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (drift?.sessionId !== this.sessionManager.getSessionId()) return;
 		if (drift.prompts < cfgTitleRefreshAfterPrompts.get(this.settings)) return;
 		this.#scheduleTitleRefresh("drift");
+	}
+
+	/**
+	 * At a settled run's end, re-consider an auto title once for the conversation a
+	 * `/clear` started (`title.refreshOnClear`). The judge decides: the boundary
+	 * proves the conversation changed, not that the title stopped naming the work,
+	 * so a long-lived agent cleared between pickups keeps its title. One check runs
+	 * per boundary, and a title the user set is never replaced. The pending check
+	 * is consumed when a refresh is scheduled ({@link #scheduleTitleRefresh}), so
+	 * title work still running at this settle leaves it for a later one.
+	 */
+	#maybeRefreshTitleAfterReset(): void {
+		const pending = this.#pendingTitleAfterReset;
+		if (!pending) return;
+		// A session switch or `/new` since the clear retired the boundary's session.
+		if (pending.sessionId !== this.sessionManager.getSessionId()) {
+			this.#pendingTitleAfterReset = undefined;
+			return;
+		}
+		this.#scheduleTitleRefresh("reset");
 	}
 
 	/**
@@ -11557,12 +11610,15 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 	}
 
 	/**
-	 * Regenerate the title from recent conversation. A prompt-count check first
-	 * asks the judge, and regenerates only a title it finds stale.
+	 * Regenerate the title from recent conversation. A prompt-count check and a
+	 * post-`/clear` boundary first ask the judge, and regenerate only a title it
+	 * finds stale; a todo-init replan retitles unconditionally.
 	 */
 	async #refreshTitle(sessionId: string, trigger: SessionNameTrigger): Promise<void> {
 		// A fitting title, one no judge could rate, or a session renamed or switched meanwhile keeps its title.
-		if (trigger === "drift" && !((await this.#titleDrifted()) && this.#titleRefreshable(sessionId, trigger))) return;
+		// A boundary is judge-gated like the prompt-count check: `/clear` proves the
+		// conversation changed, not that the title stopped naming the work.
+		if (trigger !== "replan" && !((await this.#titleDrifted()) && this.#titleRefreshable(sessionId, trigger))) return;
 		const context = this.#buildReplanTitleContext();
 		if (!context) return;
 		const retitled = await this.#retitle(context);

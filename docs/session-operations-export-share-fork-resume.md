@@ -268,6 +268,16 @@ command aborts it and waits for it to stop before resetting.
   rebuilds from the base system prompt and current project instructions.
 - Retains the session id, title, cwd, model, settings, active plan path, and
   transcript file.
+- Drops the conversation-scoped title state with the transcript it belonged to:
+  the prompts counted toward `title.refreshAfterPrompts`, a pending first title
+  for a still-untitled session, and any in-flight title generation. The retained
+  title is re-considered once, after the first post-reset run settles (or a later
+  one, if other title work is still running), and is replaced only when the judge
+  role finds it no longer names the new conversation (keeping its card). That one
+  judged check also restarts the `title.refreshAfterPrompts` count, and any
+  title refresh scheduled after the reset (e.g. a todo replan) satisfies it. A
+  user-set title is never touched, and `title.refreshOnClear` (on by default)
+  turns the check off.
 - Appends `reset_boundary` through the normal persistence pipeline. For an
   already materialized session it is durable; an in-memory or still-lazy
   session retains the marker in memory. The collapsed live transcript and

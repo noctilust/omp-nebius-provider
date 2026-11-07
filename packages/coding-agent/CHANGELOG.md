@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- After `/clear`, an auto-generated session title — card included — is re-considered once the new conversation settles, so the status line, `/resume` listing and terminal title stop naming the conversation you cleared; a title the judge still calls fitting is kept, as is one you set yourself (`title.refreshOnClear`, on by default)
+- After `/clear`, an auto-generated session title — card included — is re-considered once the new conversation settles, so the status line, `/resume` listing and terminal title stop naming the conversation you cleared; a title the judge still calls fitting is kept, as is one you set yourself (`title.refreshOnClear`, on by default). The judged retitle from `title.refreshAfterPrompts` re-derives the card the same way
 - An ovnfs checkout stays recoverable with `omp worktree clear` when removing it fails, or when creating it fails after the daemon may already have it, instead of being forgotten ([#18337](https://github.com/can1357/oh-my-pi/pull/18337) by [@eggpeat](https://github.com/eggpeat))
 - A `bash.patterns` `deny` rule now blocks a command anywhere in a `;`, `|`, `||` or `&&` line even when an earlier `prompt` rule matches another part of it, and project settings can no longer override the operator's `deny` or `prompt` patterns with `allow` ([#18349](https://github.com/can1357/oh-my-pi/pull/18349) by [@asuffield](https://github.com/asuffield))
 

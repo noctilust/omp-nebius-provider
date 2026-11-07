@@ -11605,7 +11605,7 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 
 	/**
 	 * A fresh title-model title for `context`; null when generation fails.
-	 * `keepCard` heads it with the current title's card (a drift or replan retitle
+	 * `keepCard` heads it with the current title's card (only a todo-init replan
 	 * keeps the session's card). Otherwise the card is re-derived from the new
 	 * conversation — the work the card named was dropped — so a card the
 	 * generator named is used and a cardless title asks for one.
@@ -11629,9 +11629,9 @@ export class AgentSession implements SettingsScope, AgentViewSession {
 		if (trigger !== "replan" && !((await this.#titleDrifted()) && this.#titleRefreshable(sessionId, trigger))) return;
 		const context = this.#buildReplanTitleContext();
 		if (!context) return;
-		// A `/clear` retitle re-derives the card the new conversation names; a
-		// drift or replan retitle keeps the card the session already has.
-		const retitled = await this.#retitle(context, trigger !== "reset");
+		// A `/clear` or prompt-count retitle re-derives the card the new
+		// conversation names; a todo-init replan keeps the card it already has.
+		const retitled = await this.#retitle(context, trigger === "replan");
 		if (!retitled) return;
 		// A session first named without a card (a subagent, a title-model title) gets one here.
 		const title = this.#cardsAutoTitles() ? await this.#cardTitle(retitled) : retitled;

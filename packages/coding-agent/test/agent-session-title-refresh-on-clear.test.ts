@@ -257,4 +257,26 @@ describe("AgentSession title refresh after /clear", () => {
 		await active.prompt("publish the docs pipeline");
 		expect(drifted).toHaveBeenCalledTimes(2);
 	});
+
+	it("re-derives the card on a prompt-count drift retitle too", async () => {
+		const active = await createSession({ "title.refreshAfterPrompts": 1 });
+		await active.setSessionName(CARD_TITLE, "auto");
+		const drifted = vi.spyOn(titleDriftClassifier, "classifyTitleDrift").mockResolvedValue(true);
+		const titles = vi
+			.spyOn(ai, "completeSimple")
+			.mockResolvedValueOnce(titleReply(RETITLED))
+			.mockResolvedValue(textReply(CARD_REPLY));
+
+		const retitled = waitForSessionName(RETITLED_WITH_FRESH_CARD);
+		await active.prompt("rebuild the docs pipeline");
+		await retitled;
+
+		// No `/clear` involved: the prompt-count check alone re-derived the card.
+		expect(drifted).toHaveBeenCalledTimes(1);
+		expect(titles).toHaveBeenCalledTimes(2);
+		const changes = active.sessionManager
+			.getEntries()
+			.filter((entry): entry is TitleChangeEntry => entry.type === "title_change");
+		expect(changes.at(-1)?.trigger).toBe("drift");
+	});
 });
